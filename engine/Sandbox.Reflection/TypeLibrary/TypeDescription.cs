@@ -321,6 +321,10 @@ public sealed class TypeDescription : ISourceLineProvider
 		GenericArguments = type.GetGenericArguments();
 		Interfaces = type.GetInterfaces();
 
+		// Reset cached factory so it recompiles against the new Type after hotload
+		_parameterlessFactory = null;
+		_parameterlessFactoryResolved = false;
+
 		var members = type.GetMembers( BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.Static )
 								.Where( x => ShouldExposeMember( x, library, this ) )
 								.ToList();
