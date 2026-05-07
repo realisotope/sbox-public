@@ -364,7 +364,15 @@ public partial class AssetList : ListView, AssetSystem.IEventListener
 
 		var metadata = DirectoryEntry.GetMetadata( directory.DirectoryInfo.FullName );
 		Paint.SetPen( metadata.Color );
-		Paint.DrawIcon( item.Rect.Shrink( 4, 3 ), "folder", 18, TextFlag.LeftCenter );
+		var iconRect = item.Rect.Shrink( 4, 3 );
+		iconRect.Width = iconRect.Height = 18;
+		Paint.DrawIcon( iconRect, "folder", 18, TextFlag.LeftCenter );
+
+		if ( !string.IsNullOrEmpty( metadata.Icon ) )
+		{
+			Paint.SetPen( metadata.Color.Darken( 0.25f ) );
+			Paint.DrawIcon( iconRect.Shrink( 0, 1, 0, 0 ), metadata.Icon, 9, TextFlag.Center );
+		}
 	}
 
 	private void DrawAssetEntry( VirtualWidget item, AssetEntry asset )
@@ -382,6 +390,11 @@ public partial class AssetList : ListView, AssetSystem.IEventListener
 		{
 			columns["Name"] = asset.Name;
 			columns["Path"] = Path.GetDirectoryName( asset.Asset?.RelativePath );
+		}
+
+		if ( asset.HasCustomColor && !Paint.HasSelected && !Paint.HasPressed )
+		{
+			Paint.SetPen( asset.CustomColor.WithAlpha( 0.9f ) );
 		}
 
 		DrawColumns( item, columns );
@@ -449,8 +462,25 @@ public partial class AssetList : ListView, AssetSystem.IEventListener
 
 	private void DrawAssetIcon( VirtualWidget item, AssetEntry asset )
 	{
+		if ( asset.HasCustomColor && !Paint.HasSelected && !Paint.HasPressed )
+		{
+			Paint.ClearPen();
+			Paint.SetBrush( asset.CustomColor.WithAlpha( 0.9f ) );
+			var accentRect = item.Rect.Shrink( 1, 3 );
+			accentRect.Width = 3;
+			Paint.DrawRect( accentRect, 1 );
+		}
+
 		var iconRect = item.Rect.Shrink( 4, 4 );
 		iconRect.Width = iconRect.Height = 16;
+
+		if ( asset.HasCustomIcon )
+		{
+			Paint.SetPen( asset.HasCustomColor ? asset.CustomColor : Theme.Text.WithAlpha( 0.8f ) );
+			Paint.DrawIcon( iconRect, asset.CustomIcon, 14, TextFlag.Center );
+			return;
+		}
+
 		Paint.Draw( iconRect, asset.IconSmall );
 	}
 
@@ -489,7 +519,7 @@ public partial class AssetList : ListView, AssetSystem.IEventListener
 		Paint.DrawText( item.Rect.Shrink( 42, 0 ), name, TextFlag.LeftCenter | TextFlag.SingleLine );
 	}
 
-	private AssetListViewMode _viewMode;
+ private AssetListViewMode _viewMode;
 
 	/// <summary>
 	/// Current view mode.

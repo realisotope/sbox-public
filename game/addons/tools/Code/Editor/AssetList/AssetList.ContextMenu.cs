@@ -612,9 +612,27 @@ public partial class AssetList
 			if ( count > 1 )
 			{
 				var assets = e.SelectedList.Select( x => x.Asset ).ToArray();
-				var o = e.Menu.AddOption( $"Batch Publish ({assets.Length})..", "cloud_upload", () => BatchPublisher.FromAssetsWithEnablePublish( assets ) );
+				var o = e.Menu.AddOption( $"Batch Publish ({assets.Length})..", "cloud_upload", () => BatchPublisher.FromAssets( assets ) );
 			}
 		}
+	}
+
+	[Event( "asset.contextmenu", Priority = 200 )]
+	private protected static void OnAssetContextMenu_Metadata( AssetContextMenu e )
+	{
+		if ( e.SelectedList.Count != 1 )
+			return;
+
+		var entry = e.SelectedList.First();
+		if ( entry.FileInfo is null || !entry.FileInfo.Exists )
+			return;
+
+		e.Menu.AddSeparator();
+		e.Menu.AddOption( "File Metadata", "tune", () =>
+		{
+			var dialog = new FileMetadataDialog( entry.FileInfo );
+			dialog.Show();
+		} );
 	}
 
 	#endregion

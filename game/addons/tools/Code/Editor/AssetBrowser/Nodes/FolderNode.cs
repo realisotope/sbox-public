@@ -55,12 +55,18 @@ class FolderNode : TreeNode<LocalAssetBrowser.Location>
 
 		var rect = item.Rect;
 
-		Paint.SetPen( Theme.Yellow );
+		Paint.SetPen( Metadata.Color );
 		var iconRect = Paint.DrawIcon( rect, Icon, 18, TextFlag.LeftCenter );
 
-		if ( Value.ContentsIcon is not null )
+		var metadataIcon = string.IsNullOrEmpty( Metadata.Icon ) ? null : Metadata.Icon;
+		if ( !string.IsNullOrEmpty( metadataIcon ) )
 		{
-			Paint.SetPen( Theme.Yellow );
+			Paint.SetPen( Metadata.Color.Darken( 0.25f ) );
+			Paint.DrawIcon( iconRect.Shrink( 0, 1, 0, 0 ), metadataIcon, 9, TextFlag.Center );
+		}
+		else if ( Value.ContentsIcon is not null )
+		{
+			Paint.SetPen( Metadata.Color.Darken( 0.25f ) );
 			Paint.DrawIcon( iconRect.Shrink( 0, 1, 0, 0 ), Value.ContentsIcon, 9, TextFlag.Center );
 		}
 
