@@ -69,10 +69,10 @@ public static class GameTask
 	public static Task<T[]> WhenAll<T>( IEnumerable<Task<T>> tasks ) => source.WhenAll<T>( tasks );
 
 	/// <inheritdoc cref="TaskSource.WhenAny(Task[])"/>
-	public static Task WhenAny( params Task[] tasks ) => source.WhenAny( tasks );
+	public static Task<Task> WhenAny( params Task[] tasks ) => source.WhenAny( tasks );
 
 	/// <inheritdoc cref="TaskSource.WhenAny(IEnumerable{Task})"/>
-	public static Task WhenAny( IEnumerable<Task> tasks ) => source.WhenAny( tasks );
+	public static Task<Task> WhenAny( IEnumerable<Task> tasks ) => source.WhenAny( tasks );
 
 	/// <inheritdoc cref="TaskSource.WhenAny{T}(Task{T}[])"/>
 	public static Task<Task<T>> WhenAny<T>( params Task<T>[] tasks ) => source.WhenAny<T>( tasks );
