@@ -52,6 +52,19 @@ native static class RenderTools as NativeEngine.RenderTools
 		}
 	}
 
+	inline void CopyGPUBuffer( IRenderContext renderContext, RenderBufferHandle_t hSrcBuffer, RenderBufferHandle_t hDstBuffer, uint nSrcOffset, uint nDstOffset, uint nSize )
+	{
+		if ( renderContext == nullptr )
+		{
+			CRenderContextPtr pRenderContext( g_pRenderDevice );
+			pRenderContext->CopyGPUBuffer( hSrcBuffer, hDstBuffer, nSrcOffset, nDstOffset, nSize );
+		}
+		else
+		{
+			renderContext->CopyGPUBuffer( hSrcBuffer, hDstBuffer, nSrcOffset, nDstOffset, nSize );
+		}
+	}
+
 	inline void CopyGPUBufferHiddenStructureCount( IRenderContext renderContext, RenderBufferHandle_t hSrcBuffer, RenderBufferHandle_t hDestBuffer, uint nDestBufferOffset )
 	{
 		// Create and submit
