@@ -296,25 +296,13 @@ internal class UISystem
 			}
 
 			//
-			// The developer console is open
+			// The developer console / chat is open
 			//
 			if ( IMenuSystem.Current?.ForceCursorVisible ?? false )
 			{
 				mouseState = Sandbox.Engine.InputContext.InputState.UI;
 				buttonState = Sandbox.Engine.InputContext.InputState.UI;
 			}
-
-			//
-			// When in-game with a focused menu panel, route keyboard input to it
-			//
-			if ( CurrentFocus is not null && buttonState == InputContext.InputState.Ignore )
-				buttonState = CurrentFocus.ButtonInput == PanelInputType.Game ? InputContext.InputState.Game : InputContext.InputState.UI;
-
-			//
-			// When in-game and a focused menu panel, route mouse input to it
-			//
-			if ( inGame && mouseState == InputContext.InputState.Ignore && DoAnyPanelsWantMouseVisible() )
-				mouseState = InputContext.InputState.UI;
 		}
 
 		//

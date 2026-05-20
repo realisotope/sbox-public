@@ -17,8 +17,9 @@
 
 @code
 {
+    public static bool IsOpen { get; private set; }
+
     ChatPanel Panel;
-    bool IsOpen;
     string Channel = "say";
     bool WasInGame;
     RealTimeSince TimeSinceOpened;
