@@ -1075,6 +1075,10 @@ public partial class SceneNetworkSystem : GameNetworkSystem
 		{
 			foreach ( var msg in message.CreateMsgs )
 			{
+				// Don't let clients claim ownership or creation on behalf of other connections
+				if ( source is not null && !source.IsHost && (msg.Owner != source.Id || msg.Creator != source.Id) )
+					continue;
+
 				using ( BlobDataSerializer.LoadFromMemory( msg.BlobData ) )
 				{
 					var go = new GameObject();
@@ -1097,6 +1101,10 @@ public partial class SceneNetworkSystem : GameNetworkSystem
 
 		// Is this a request from someone?
 		if ( source is not null && !source.CanSpawnObjects )
+			return;
+
+		// Don't let clients claim ownership or creation on behalf of other connections
+		if ( source is not null && !source.IsHost && (message.Owner != source.Id || message.Creator != source.Id) )
 			return;
 
 		var go = new GameObject();
