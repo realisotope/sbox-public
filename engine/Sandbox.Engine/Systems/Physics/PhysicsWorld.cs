@@ -40,6 +40,8 @@ public sealed partial class PhysicsWorld : IHandle
 	/// </summary>
 	public IEnumerable<PhysicsBody> Bodies => bodies.Where( x => x.IsValid() );
 
+	internal int BodyCount => bodies.Count;
+
 	//public Action<int, PhysicsBody, PhysicsBody, Vector3> Internal_OnCollision;
 
 	/// <summary>
