@@ -48,6 +48,10 @@ public sealed class SceneAnimationSystem : GameObjectSystem<SceneAnimationSystem
 			_rootRenderers.Clear();
 			_boneMergeRoots.Clear();
 
+			// Nothing animating - no bones to update, no decode caches worth maintaining
+			if ( SkinnedRenderers.Count == 0 )
+				return;
+
 			foreach ( var renderer in SkinnedRenderers.EnumerateLocked() )
 			{
 				if ( renderer.IsRootRenderer )
