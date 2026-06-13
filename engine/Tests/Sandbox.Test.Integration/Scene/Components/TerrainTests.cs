@@ -386,12 +386,11 @@ public class TerrainComponentTest
 	}
 
 	/// <summary>
-	/// CPU height edits reach the collider: UpdateCollision pushes the new heights into the
-	/// live heightfield shape in place, although the shape's cached local AABB is only
-	/// computed at creation so it still reports the old height range (suspected engine
-	/// quirk: UpdateHeightShape never recomputes the height field's stored bounds). Toggling
-	/// EnableCollision rebuilds the shape from the current storage, after which the bounds
-	/// reflect the raised heights.
+	/// CPU height edits reach the collider in place: UpdateCollision pushes the new heights
+	/// into the live heightfield shape and expands its cached local AABB so raised terrain is
+	/// no longer culled by the broadphase or the height field's narrowphase early-out. The
+	/// expansion is one-directional, so lowering does not retighten the bounds until the shape
+	/// is rebuilt from storage by toggling EnableCollision.
 	/// </summary>
 	[TestMethod]
 	public void HeightEditsReachColliderOnRebuild()
@@ -419,7 +418,7 @@ public class TerrainComponentTest
 		terrain.UpdateCollision( Terrain.SyncFlags.Height, new RectInt( 0, 0, 64, 64 ) );
 
 		Assert.AreEqual( 1, terrain.Shapes.Count, "In-place updates keep the same shape" );
-		Assert.AreEqual( 0.0f, terrain.Shapes[0].LocalBounds.Maxs.y, 1.0f, "The shape's stored bounds are stale after an in-place height update" );
+		Assert.AreEqual( 1000.0f, terrain.Shapes[0].LocalBounds.Maxs.y, 1.0f, "In-place height edits expand the shape's cached bounds to the raised heights" );
 
 		terrain.EnableCollision = false;
 
