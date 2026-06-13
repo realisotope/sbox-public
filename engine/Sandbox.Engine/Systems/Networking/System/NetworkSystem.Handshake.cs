@@ -236,7 +236,12 @@ internal partial class NetworkSystem
 		log.Trace( "Welcome!" );
 
 		LoadingScreen.Title = "Loading Network Tables";
-		await IGameInstanceDll.Current?.LoadNetworkTables( this );
+		if ( !await IGameInstanceDll.Current?.LoadNetworkTables( this ) )
+		{
+			// code archive compile failed or something
+			Networking.Disconnect();
+			return;
+		}
 
 		LoadingScreen.Title = "Init Game System";
 		await InitializeGameSystemAsync();

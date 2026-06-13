@@ -237,10 +237,24 @@ public partial class Project
 				}
 			}
 
+			AssemblyFileSystem.CreateDirectory( "/.bin" );
+
+			if ( Config.FullIdent == "local.base" )
+			{
+				// package.base gets sent to clients, so we need to have a .cll
+				string cllPath = Path.Combine( directory, $"{compiler.AssemblyName}.cll" );
+				if ( !File.Exists( cllPath ) )
+					return false;
+
+				byte[] cllBytes = File.ReadAllBytes( cllPath );
+				if ( cllBytes is null )
+					return false;
+
+				AssemblyFileSystem.WriteAllBytes( $"/.bin/{compiler.AssemblyName}.cll", cllBytes );
+			}
+
 			// All good, swap in the assembly
 			compiler.UpdateFromAssembly( bytes );
-
-			AssemblyFileSystem.CreateDirectory( "/.bin" );
 			AssemblyFileSystem.WriteAllBytes( $"/.bin/{compiler.AssemblyName}.dll", bytes );
 
 			return true;
@@ -383,9 +397,11 @@ public partial class Project
 					continue;
 				}
 
+				var cll = assembly.Archive.Serialize();
+
 				project.AssemblyFileSystem.CreateDirectory( "/.bin" );
 				project.AssemblyFileSystem.WriteAllBytes( $"/.bin/{assembly.Compiler.AssemblyName}.dll", assembly.AssemblyData );
-				project.AssemblyFileSystem.WriteAllBytes( $"/.bin/{assembly.Compiler.AssemblyName}.cll", assembly.Archive.Serialize() );
+				project.AssemblyFileSystem.WriteAllBytes( $"/.bin/{assembly.Compiler.AssemblyName}.cll", cll );
 
 				if ( project.CacheAssemblies )
 				{
@@ -395,6 +411,7 @@ public partial class Project
 						Directory.CreateDirectory( binPath );
 
 						File.WriteAllBytes( Path.Combine( binPath, $"{assembly.Compiler.AssemblyName}.dll" ), assembly.AssemblyData );
+						File.WriteAllBytes( Path.Combine( binPath, $"{assembly.Compiler.AssemblyName}.cll" ), cll );
 					}
 					catch ( Exception ex )
 					{
