@@ -129,6 +129,52 @@ public class SkinnedRendererTest
 	}
 
 	/// <summary>
+	/// Enabling CreateBoneObjects on a renderer that has no live SceneModel (here, because
+	/// its GameObject is disabled) must still place the generated bone GameObjects at their
+	/// bind-pose transforms. With no SceneModel the per-frame bone sync never runs, so without
+	/// seeding the objects would sit at identity and anything parented to a bone (e.g. a
+	/// collider) would be offset. Regression test for sbox-public issue #593.
+	/// </summary>
+	[TestMethod]
+	public void CreateBoneObjectsWhileDisabledUsesBindPose()
+	{
+		var scene = new Scene();
+		using var sceneScope = scene.Push();
+
+		var go = scene.CreateObject();
+		go.Enabled = false;
+
+		var smr = go.Components.Create<SkinnedModelRenderer>();
+		smr.Model = CitizenModel;
+		smr.CreateBoneObjects = true;
+
+		Assert.IsNull( smr.SceneModel, "A renderer on a disabled GameObject has no live scene model to drive bones" );
+
+		var offsetBones = 0;
+
+		foreach ( var bone in CitizenModel.Bones.AllBones )
+		{
+			var boneObject = smr.GetBoneObject( bone.Index );
+			Assert.IsNotNull( boneObject, $"A bone object should be created for '{bone.Name}'" );
+
+			var expected = bone.Parent is { } parent
+				? parent.LocalTransform.ToLocal( bone.LocalTransform )
+				: bone.LocalTransform;
+
+			Assert.IsTrue( boneObject.LocalTransform.AlmostEqual( expected, 0.01f ),
+				$"Bone '{bone.Name}' should be at its bind pose, was {boneObject.LocalTransform.Position} expected {expected.Position}" );
+
+			if ( expected.Position.Length > 0.1f )
+				offsetBones++;
+		}
+
+		Assert.IsTrue( offsetBones > 0, "The citizen bind pose has plenty of offset bones - if none registered the test isn't proving anything (all-identity would trivially pass)" );
+
+		go.Destroy();
+		scene.ProcessDeletes();
+	}
+
+	/// <summary>
 	/// The citizen animgraph parameter defaults are readable as soon as the renderer is
 	/// enabled (b_grounded true, duck 0, hit_bone 20, aim_eyes (100,0,0), identity ik
 	/// rotation), every parameter type round trips through Set/Get against the live graph,

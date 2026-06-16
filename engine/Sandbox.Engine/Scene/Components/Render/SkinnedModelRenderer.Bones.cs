@@ -69,6 +69,18 @@ public sealed partial class SkinnedModelRenderer
 		foreach ( var entry in boneObjects )
 		{
 			boneToGameObject[entry.Key] = entry.Value;
+
+			if ( entry.Value.Flags.Contains( GameObjectFlags.ProceduralBone ) )
+				continue;
+
+			if ( entry.Value.Flags.Contains( GameObjectFlags.Absolute ) )
+				continue;
+
+			var bone = entry.Key;
+
+			entry.Value.LocalTransform = bone.Parent is { } parent
+				? parent.LocalTransform.ToLocal( bone.LocalTransform )
+				: bone.LocalTransform;
 		}
 	}
 
