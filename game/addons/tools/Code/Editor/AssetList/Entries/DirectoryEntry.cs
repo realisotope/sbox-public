@@ -10,14 +10,10 @@ public class DirectoryEntry : IAssetListEntry
 	public string Name { get; private set; }
 	public string GetStatusText() => Path;
 
-	static Dictionary<string, FolderMetadata> AllMetadata = null;
-	FolderMetadata Metadata;
-
 	public DirectoryEntry( string path )
 	{
 		Path = path;
 		Name = System.IO.Path.GetFileName( Path );
-		Metadata = GetMetadata( Path );
 	}
 
 	//
@@ -78,14 +74,14 @@ public class DirectoryEntry : IAssetListEntry
 	public void DrawIcon( Rect rect )
 	{
 		Paint.ClearBrush();
-		Paint.SetPen( Metadata.Color );
+		Paint.SetPen( Theme.Yellow );
 		var folderRect = Paint.DrawIcon( rect, "folder", rect.Width );
 
-		var icon = string.IsNullOrEmpty( Metadata.Icon ) ? GetUniqueIcon() : Metadata.Icon;
+		var icon = GetUniqueIcon();
 		if ( !string.IsNullOrEmpty( icon ) )
 		{
 			folderRect.Top += 5f;
-			Paint.SetPen( Metadata.Color.Darken( 0.25f ) );
+			Paint.SetPen( Theme.Yellow.Darken( 0.25f ) );
 			Paint.DrawIcon( folderRect, icon, rect.Width / 3f, TextFlag.DontClip | TextFlag.Center );
 		}
 	}
@@ -103,103 +99,4 @@ public class DirectoryEntry : IAssetListEntry
 		DirectoryInfo.MoveTo( newPath );
 	}
 
-	internal static FolderMetadata GetMetadata( string path )
-	{
-		var relativePath = GetRelativePath( path );
-
-		// If we don't have a metadata dictionary, initialize it
-		if ( AllMetadata is null )
-		{
-			var loadedMetadata = FileSystem.ProjectSettings.ReadJsonOrDefault<IEnumerable<KeyValuePair<string, FolderMetadata>>>( MetadataPath );
-			if ( loadedMetadata is not null )
-			{
-				// Load metadata from file
-				AllMetadata = loadedMetadata.ToDictionary( x => x.Key, x => x.Value );
-			}
-			else
-			{
-				// If the file doesn't exist, or the data is malformed, initialize with an empty dictionary
-				AllMetadata = new Dictionary<string, FolderMetadata>();
-			}
-		}
-
-		// Get the cached metadata if it exists, otherwise create a new entry
-		if ( AllMetadata.TryGetValue( relativePath, out var metadata ) )
-		{
-			return metadata;
-		}
-
-		var newData = new FolderMetadata();
-		AllMetadata[relativePath] = newData;
-		return newData;
-	}
-
-	internal static void RenameMetadata( string path, string newPath )
-	{
-		var relativePath = GetRelativePath( path );
-		var newRelativePath = GetRelativePath( newPath );
-		if ( AllMetadata.TryGetValue( relativePath, out var metadata ) )
-		{
-			AllMetadata[newRelativePath] = metadata;
-			AllMetadata.Remove( relativePath );
-		}
-		SaveMetadata();
-	}
-
-	static string GetRelativePath( string path )
-	{
-		var rootPath = Project.Current.GetRootPath();
-		return System.IO.Path.GetRelativePath( rootPath, path );
-	}
-
-	public override bool Equals( object obj )
-	{
-		if ( obj is not DirectoryEntry de )
-		{
-			return false;
-		}
-
-		return DirectoryInfo.FullName.Equals( de.DirectoryInfo.FullName );
-	}
-
-	public override int GetHashCode()
-	{
-		return DirectoryInfo.FullName.GetHashCode();
-	}
-
-	internal static void SaveMetadata()
-	{
-		// Don't serialize if we don't have any metadata
-		if ( AllMetadata is null )
-			return;
-
-		// Filter out any default entries
-		var newDataHash = new FolderMetadata().GetHashCode();
-		var savedMetadata = AllMetadata.Where( x =>
-		{
-			if ( x.Value.GetHashCode() == newDataHash )
-				return false;
-			return true;
-		} );
-
-		// Don't save an empty file if we don't have to
-		if ( savedMetadata.Count() == 0 && !FileSystem.ProjectSettings.FileExists( MetadataPath ) )
-			return;
-
-		FileSystem.ProjectSettings.WriteJson( MetadataPath, savedMetadata );
-	}
-
-	internal class FolderMetadata
-	{
-		[DefaultValue( "#E6DB74" )]
-		public Color Color { get; set; } = Theme.Yellow;
-
-		[IconName]
-		public string Icon { get; set; } = "";
-
-		public override int GetHashCode()
-		{
-			return System.HashCode.Combine( Color, Icon );
-		}
-	}
 }

@@ -1,4 +1,4 @@
-﻿using System.IO;
+using System.IO;
 using System.Text;
 using System.Threading;
 
@@ -200,7 +200,12 @@ public partial class AssetBrowser : Widget, IBrowser, AssetSystem.IEventListener
 		Layout.Add( splitter );
 
 		BuildToolbar( toolbar );
+
+		// Load tag appearance settings for the current project
+		TagAppearanceSettings.Load();
+
 		UpdateToolbarOptions();
+
 
 		if ( FilterAssetTypes is not null )
 		{
@@ -747,6 +752,9 @@ public partial class AssetBrowser : Widget, IBrowser, AssetSystem.IEventListener
 	{
 		if ( Search.AssetTypes == null ) return;
 
+		// Reload tag appearances when project changes
+		TagAppearanceSettings.Load();
+
 		Search.AssetTypes.Options.Clear();
 
 		TagPicker.Option SelectAssetTypes( AssetType x ) => new( x.FileExtension )
@@ -766,6 +774,7 @@ public partial class AssetBrowser : Widget, IBrowser, AssetSystem.IEventListener
 			Subtitle = x.Description,
 			Group = "Tags",
 			Column = 1,
+			Color = AssetTagSystem.GetTagColor( x.Tag ),
 			Count = () => AssetSystem.All.Where( y => y.Tags.Contains( x.Tag ) ).Count()
 		};
 

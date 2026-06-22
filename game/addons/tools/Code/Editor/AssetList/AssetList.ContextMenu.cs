@@ -1,4 +1,4 @@
-﻿using Editor.Widgets.Packages;
+using Editor.Widgets.Packages;
 using System.IO;
 using System.Security;
 
@@ -87,6 +87,11 @@ internal class MenuCheckableOption : Button
 		IconPixmap = icon;
 	}
 
+	/// <summary>Color used for the checked-state accent stripe. Defaults to Theme.Primary.</summary>
+	public Color AccentColor { get; set; } = default;
+
+	private Color ResolvedAccentColor => AccentColor.a > 0.001f ? AccentColor : Theme.Primary;
+
 	// Mimic Option stlying, because I can't get the button text/icon to reposition.
 	protected override void OnPaint()
 	{
@@ -108,7 +113,7 @@ internal class MenuCheckableOption : Button
 		{
 			var rect = LocalRect;
 			rect.Width = 3;
-			Paint.SetBrush( Theme.Primary );
+			Paint.SetBrush( ResolvedAccentColor );
 			Paint.DrawRect( rect );
 		}
 
@@ -359,6 +364,7 @@ public partial class AssetList
 
 			var tagToggle = new MenuCheckableOption( tag );
 			tagToggle.IsChecked = entries.All( x => x.Asset.Tags.Contains( tag.Tag ) );
+			tagToggle.AccentColor = AssetTagSystem.GetTagColor( tag.Tag );
 			tagToggle.Toggled = () =>
 			{
 				foreach ( var entry in entries )
@@ -526,11 +532,9 @@ public partial class AssetList
 				if ( string.Compare( oldPath, newPath, true ) == 0 )
 				{
 					EditorUtility.RenameDirectory( oldPath, newPath + "_temp" );
-					DirectoryEntry.RenameMetadata( oldPath, newPath + "_temp" );
 					oldPath = newPath + "_temp";
 				}
 				EditorUtility.RenameDirectory( oldPath, newPath );
-				DirectoryEntry.RenameMetadata( oldPath, newPath );
 			} );
 	}
 
@@ -602,23 +606,6 @@ public partial class AssetList
 		}
 	}
 
-	[Event( "asset.contextmenu", Priority = 200 )]
-	private protected static void OnAssetContextMenu_Metadata( AssetContextMenu e )
-	{
-		if ( e.SelectedList.Count != 1 )
-			return;
-
-		var entry = e.SelectedList.First();
-		if ( entry.FileInfo is null || !entry.FileInfo.Exists )
-			return;
-
-		e.Menu.AddSeparator();
-		e.Menu.AddOption( "File Metadata", "tune", () =>
-		{
-			var dialog = new FileMetadataDialog( entry.FileInfo );
-			dialog.Show();
-		} );
-	}
 
 	#endregion
 
@@ -741,11 +728,6 @@ public partial class AssetList
 
 		e.Menu.AddSeparator();
 		e.Menu.AddOption( "Show in Explorer", "folder_open", () => EditorUtility.OpenFolder( e.Target.FullName ) );
-		e.Menu.AddOption( "Folder Metadata", "tune", () =>
-		{
-			var dialog = new FolderMetadataDialog( e.Target );
-			dialog.Show();
-		} );
 	}
 
 	#endregion

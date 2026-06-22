@@ -200,6 +200,9 @@ internal sealed class ProjectSettingsWindow : Window
 			AddCategoryToList( typeof( CompilerCategory ), "Compiler" );
 		}
 
+		// Asset tags page is available for all project types
+		AddCategoryToList( typeof( AssetTagsCategory ), "Editor" );
+
 		// Build the tree based on category counts
 		foreach ( var (sectionName, categories) in categoriesBySection )
 		{

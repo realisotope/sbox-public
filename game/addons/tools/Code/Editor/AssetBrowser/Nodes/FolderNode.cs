@@ -1,4 +1,4 @@
-﻿using System.IO;
+using System.IO;
 
 namespace Editor;
 
@@ -8,14 +8,11 @@ class FolderNode : TreeNode<LocalAssetBrowser.Location>
 	public string Icon { get; set; }
 	public bool TitleCase { get; set; } = false;
 
-	DirectoryEntry.FolderMetadata Metadata;
-
 	FileSystemWatcher watcher;
 
 	public FolderNode( LocalAssetBrowser.Location location ) : base( location )
 	{
 		Icon = location.Icon;
-		Metadata = DirectoryEntry.GetMetadata( Value.Path );
 
 		if ( location is DiskLocation )
 		{
@@ -55,18 +52,12 @@ class FolderNode : TreeNode<LocalAssetBrowser.Location>
 
 		var rect = item.Rect;
 
-		Paint.SetPen( Metadata.Color );
+		Paint.SetPen( Theme.Yellow );
 		var iconRect = Paint.DrawIcon( rect, Icon, 18, TextFlag.LeftCenter );
 
-		var metadataIcon = string.IsNullOrEmpty( Metadata.Icon ) ? null : Metadata.Icon;
-		if ( !string.IsNullOrEmpty( metadataIcon ) )
+		if ( Value.ContentsIcon is not null )
 		{
-			Paint.SetPen( Metadata.Color.Darken( 0.25f ) );
-			Paint.DrawIcon( iconRect.Shrink( 0, 1, 0, 0 ), metadataIcon, 9, TextFlag.Center );
-		}
-		else if ( Value.ContentsIcon is not null )
-		{
-			Paint.SetPen( Metadata.Color.Darken( 0.25f ) );
+			Paint.SetPen( Theme.Yellow );
 			Paint.DrawIcon( iconRect.Shrink( 0, 1, 0, 0 ), Value.ContentsIcon, 9, TextFlag.Center );
 		}
 
@@ -148,7 +139,6 @@ class FolderNode : TreeNode<LocalAssetBrowser.Location>
 				{
 					// Move Directory
 					EditorUtility.RenameDirectory( file, destinationFile );
-					DirectoryEntry.RenameMetadata( file, destinationFile );
 				}
 				else
 				{

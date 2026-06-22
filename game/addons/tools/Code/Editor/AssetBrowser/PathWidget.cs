@@ -1,4 +1,4 @@
-﻿using System.IO;
+using System.IO;
 
 namespace Editor;
 
@@ -326,7 +326,6 @@ public class PathWidget : Widget
 					{
 						// Move Directory
 						EditorUtility.RenameDirectory( file, destinationFile );
-						DirectoryEntry.RenameMetadata( file, destinationFile );
 					}
 					else
 					{

@@ -1,12 +1,10 @@
-﻿using System.IO;
-using System.ComponentModel;
+using System.IO;
 
 namespace Editor;
 
 public class AssetEntry : IAssetListEntry
 {
 	private readonly Color TypeColor;
-	private readonly FileMetadata Metadata;
 
 	public readonly FileInfo FileInfo;
 	public readonly string TypeName;
@@ -21,12 +19,33 @@ public class AssetEntry : IAssetListEntry
 
 	public string AbsolutePath => Asset?.AbsolutePath ?? FileInfo.FullName;
 	public AssetType AssetType => Asset?.AssetType ?? null;
-	public bool HasCustomColor => Metadata.Color.a > 0.001f;
-	public Color CustomColor => Metadata.Color;
-	public bool HasCustomIcon => !string.IsNullOrWhiteSpace( Metadata.Icon );
-	public string CustomIcon => Metadata.Icon;
-	private Color DisplayColor => HasCustomColor ? Metadata.Color : TypeColor;
-	private Color TypeStripColor => (HasCustomColor && Metadata.CustomTypeStripColor) ? Metadata.Color : TypeColor;
+
+	/// <summary>
+	/// Returns the first user-applied tag that has a configured appearance (color or icon),
+	/// or null if none.
+	/// </summary>
+	private TagAppearanceSettings.TagAppearance ActiveTagAppearance
+	{
+		get
+		{
+			if ( Asset is null ) return null;
+			foreach ( var tag in Asset.Tags )
+			{
+				if ( AssetTagSystem.IsAutoTag( tag ) ) continue;
+				var appearance = TagAppearanceSettings.GetAppearance( tag );
+				if ( appearance.HasColor || appearance.HasIcon )
+					return appearance;
+			}
+			return null;
+		}
+	}
+
+	public bool HasCustomColor => ActiveTagAppearance?.HasColor ?? false;
+	public Color CustomColor => ActiveTagAppearance?.Color ?? TypeColor;
+	public bool HasCustomIcon => ActiveTagAppearance?.HasIcon ?? false;
+	public string CustomIcon => ActiveTagAppearance?.MaterialIcon ?? string.Empty;
+	private Color DisplayColor => HasCustomColor ? CustomColor : TypeColor;
+
 
 	public AssetEntry( Asset asset ) : this( new FileInfo( asset.AbsolutePath ), asset )
 	{
@@ -36,7 +55,6 @@ public class AssetEntry : IAssetListEntry
 	public AssetEntry( FileInfo fileInfo, Asset asset )
 	{
 		FileInfo = fileInfo;
-		Metadata = GetMetadata( fileInfo.FullName );
 
 		var fileExtension = Path.GetExtension( fileInfo.Name );
 
@@ -100,7 +118,7 @@ public class AssetEntry : IAssetListEntry
 		Paint.BilinearFiltering = false;
 
 		Paint.ClearPen();
-		Paint.SetBrush( TypeStripColor );
+		Paint.SetBrush( TypeColor );
 		var stripRect = rect;
 		stripRect.Top = rect.Top + rect.Width - 4;
 		stripRect.Left = rect.Left + 4;
@@ -166,7 +184,7 @@ public class AssetEntry : IAssetListEntry
 	{
 		Paint.SetDefaultFont( 7 );
 		Paint.ClearPen();
-		Paint.SetPen( HasCustomColor ? Metadata.Color.WithAlpha( 0.85f ) : Theme.Text.WithAlpha( 0.7f ) );
+		Paint.SetPen( HasCustomColor ? CustomColor.WithAlpha( 0.85f ) : Theme.Text.WithAlpha( 0.7f ) );
 
 		rect.Top += 2; // Pull down to avoid conflicting with asset type strip
 
@@ -182,19 +200,14 @@ public class AssetEntry : IAssetListEntry
 
 	public void Delete()
 	{
-		var oldPath = FileInfo.FullName;
-
 		if ( Asset is not null )
 			Asset.Delete();
 		else
 			FileInfo.Delete();
-
-		RemoveMetadata( oldPath );
 	}
 
 	public void Rename( string newName )
 	{
-		var oldPath = FileInfo.FullName;
 		string compiledPath = Asset?.GetCompiledFile( true );
 		if ( !string.IsNullOrEmpty( compiledPath ) )
 		{
@@ -207,7 +220,6 @@ public class AssetEntry : IAssetListEntry
 		}
 
 		FileInfo.MoveTo( FileInfo.GetNewPath( newName ) );
-		RenameMetadata( oldPath, FileInfo.FullName );
 		Asset = AssetSystem.RegisterFile( FileInfo.FullName );
 	}
 
@@ -215,8 +227,8 @@ public class AssetEntry : IAssetListEntry
 	{
 		var newPath = FileInfo.GetNewPath( newName ?? FileInfo.GetDefaultDuplicateName() );
 		FileInfo.CopyTo( newPath );
-		CopyMetadata( FileInfo.FullName, newPath );
 	}
+
 
 	public bool OnDoubleClicked( AssetList list )
 	{
@@ -252,100 +264,6 @@ public class AssetEntry : IAssetListEntry
 	public override int GetHashCode()
 	{
 		return FileInfo.FullName.GetHashCode();
-	}
-
-	static Dictionary<string, FileMetadata> AllMetadata = null;
-	private static string MetadataPath => "File.metadata";
-
-	internal static FileMetadata GetMetadata( string path )
-	{
-		var relativePath = GetRelativePath( path );
-
-		if ( AllMetadata is null )
-		{
-			var loadedMetadata = FileSystem.ProjectSettings.ReadJsonOrDefault<IEnumerable<KeyValuePair<string, FileMetadata>>>( MetadataPath );
-			AllMetadata = loadedMetadata?.ToDictionary( x => x.Key, x => x.Value ) ?? new Dictionary<string, FileMetadata>();
-		}
-
-		if ( AllMetadata.TryGetValue( relativePath, out var metadata ) )
-			return metadata;
-
-		var newData = new FileMetadata();
-		AllMetadata[relativePath] = newData;
-		return newData;
-	}
-
-	internal static void RenameMetadata( string path, string newPath )
-	{
-		if ( AllMetadata is null )
-			return;
-
-		var relativePath = GetRelativePath( path );
-		var newRelativePath = GetRelativePath( newPath );
-		if ( !AllMetadata.TryGetValue( relativePath, out var metadata ) )
-			return;
-
-		AllMetadata[newRelativePath] = metadata;
-		AllMetadata.Remove( relativePath );
-		SaveMetadata();
-	}
-
-	internal static void CopyMetadata( string path, string newPath )
-	{
-		var source = GetMetadata( path );
-		if ( source.GetHashCode() == new FileMetadata().GetHashCode() )
-			return;
-
-		var target = GetMetadata( newPath );
-		target.Color = source.Color;
-		target.Icon = source.Icon;
-		target.CustomTypeStripColor = source.CustomTypeStripColor;
-		SaveMetadata();
-	}
-
-	internal static void RemoveMetadata( string path )
-	{
-		if ( AllMetadata is null )
-			return;
-
-		var relativePath = GetRelativePath( path );
-		if ( AllMetadata.Remove( relativePath ) )
-			SaveMetadata();
-	}
-
-	internal static void SaveMetadata()
-	{
-		if ( AllMetadata is null )
-			return;
-
-		var newDataHash = new FileMetadata().GetHashCode();
-		var savedMetadata = AllMetadata.Where( x => x.Value.GetHashCode() != newDataHash );
-
-		if ( !savedMetadata.Any() && !FileSystem.ProjectSettings.FileExists( MetadataPath ) )
-			return;
-
-		FileSystem.ProjectSettings.WriteJson( MetadataPath, savedMetadata );
-	}
-
-	static string GetRelativePath( string path )
-	{
-		var rootPath = Project.Current.GetRootPath();
-		return System.IO.Path.GetRelativePath( rootPath, path );
-	}
-
-	internal class FileMetadata
-	{
-		public Color Color { get; set; } = Theme.Yellow.WithAlpha( 0 );
-
-		[IconName]
-		public string Icon { get; set; } = "";
-
-		public bool CustomTypeStripColor { get; set; } = false;
-
-		public override int GetHashCode()
-		{
-			return System.HashCode.Combine( Color, Icon, CustomTypeStripColor );
-		}
 	}
 }
 

@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 
 namespace Editor;
 
@@ -41,6 +41,10 @@ public static class AssetTagSystem
 		public string Title { get; internal set; }
 		public string Description { get; internal set; }
 		public string Icon { get; internal set; }
+		/// <summary>User-configured display color. Transparent means "use auto-color".</summary>
+		public Color Color { get; internal set; }
+		/// <summary>Optional Material icon name override for the tag's icon pixmap.</summary>
+		public string MaterialIcon { get; internal set; }
 		public bool AutoTag => Filter != null;
 		public AssetAutoTagFilter Filter { get; internal set; }
 		public Pixmap IconPixmap => GetTagIcon( Tag );
@@ -72,7 +76,7 @@ public static class AssetTagSystem
 			return TagIcons[tag];
 		}
 
-		TagIcons[tag] = DrawIcon( tagDef.Title );
+		TagIcons[tag] = DrawIcon( tagDef );
 		return TagIcons[tag];
 	}
 
@@ -91,11 +95,38 @@ public static class AssetTagSystem
 		Color.Parse( "#FF7070" ) ?? default,
 	};
 
-	static Pixmap DrawIcon( string tag )
+	static Pixmap DrawIcon( TagDefinition def )
 	{
-		// get color from a hash of the tag so it's consistent across sessions
-		var rand = new Random( tag.FastHash() );
-		var color = rand.FromArray( tagColors );
+		// Use user-configured color if set, otherwise use deterministic hash color
+		Color color;
+		if ( def.Color.a > 0.001f )
+		{
+			color = def.Color;
+
+			// If the tag has a material icon override, render that instead of a letter square
+			if ( !string.IsNullOrWhiteSpace( def.MaterialIcon ) )
+			{
+				var iconPm = new Pixmap( 16, 16 );
+				iconPm.Clear( new Color( 0, 0, 0, 0 ) );
+				var ir = new Rect( 0, iconPm.Size );
+				using ( Paint.ToPixmap( iconPm ) )
+				{
+					Paint.Antialiasing = true;
+					Paint.TextAntialiasing = true;
+					Paint.ClearPen();
+					Paint.SetBrush( color.Darken( 0.2f ) );
+					Paint.DrawRect( ir, 2 );
+					Paint.SetPen( color.Lighten( 0.5f ) );
+					Paint.DrawIcon( ir, def.MaterialIcon, 10, TextFlag.Center );
+				}
+				return iconPm;
+			}
+		}
+		else
+		{
+			var rand = new Random( (def.Tag ?? def.Title ?? "").FastHash() );
+			color = rand.FromArray( tagColors );
+		}
 
 		var pNewIcon = new Pixmap( 16, 16 );
 		var r = new Rect( 0, pNewIcon.Size );
@@ -111,7 +142,9 @@ public static class AssetTagSystem
 
 			Paint.SetPen( color.Lighten( 0.5f ) );
 			Paint.SetDefaultFont( 7, 500 );
-			Paint.DrawText( r.Shrink( 3, 0 ), tag[..1].ToUpper(), TextFlag.Center );
+			
+			var letter = (def.Title ?? def.Tag ?? " ")[..1].ToUpper();
+			Paint.DrawText( r.Shrink( 3, 0 ), letter, TextFlag.Center );
 		}
 
 		return pNewIcon;
@@ -128,6 +161,40 @@ public static class AssetTagSystem
 	internal static void RegisterAssetTag( string tag, string title, string desc = "", string icon = null, AssetAutoTagFilter filter = null )
 	{
 		TagDefinitions[tag] = new TagDefinition() { Tag = tag, Title = title, Description = desc, Icon = icon, Filter = filter };
+	}
+
+	/// <summary>
+	/// Register or update a user-defined tag with a custom display color and optional material icon.
+	/// Called by the tag appearance settings system when the user configures a tag.
+	/// </summary>
+	public static void RegisterUserTag( string tag, Color color, string materialIcon = null )
+	{
+		tag = tag.Trim();
+		if ( string.IsNullOrWhiteSpace( tag ) ) return;
+
+		var existing = TagDefinitions.ContainsKey( tag ) ? TagDefinitions[tag] : new TagDefinition { Tag = tag, Title = tag.ToTitleCase() };
+		existing.Color = color;
+		existing.MaterialIcon = materialIcon;
+		TagDefinitions[tag] = existing;
+
+		// Invalidate cached icon so it is regenerated with the new color
+		TagIcons.Remove( tag );
+
+		MainThread.Queue( () => EditorEvent.RunInterface<AssetSystem.IEventListener>( x => x.OnAssetTagsChanged() ) );
+	}
+
+	/// <summary>
+	/// Returns the resolved display color for a tag.
+	/// Uses the user-configured color if set, otherwise falls back to the auto-generated hash color.
+	/// </summary>
+	public static Color GetTagColor( string tag )
+	{
+		if ( TagDefinitions.TryGetValue( tag, out var def ) && def.Color.a > 0.001f )
+			return def.Color;
+
+		// Fall back to the deterministic hash color
+		var rand = new Random( tag.FastHash() );
+		return rand.FromArray( tagColors );
 	}
 
 	/// <summary>

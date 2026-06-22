@@ -1,4 +1,4 @@
-﻿using System.IO;
+using System.IO;
 
 namespace Editor;
 
@@ -163,14 +163,16 @@ public class Chip : Button
 
 		if ( IsActive )
 		{
-			Paint.SetPen( Theme.Blue.WithAlpha( 0.3f ), 1 );
-			Paint.SetBrush( Theme.Blue.WithAlpha( 0.2f ) );
+			var chipColor = AssetTagSystem.GetTagColor( InternalName );
+			Paint.SetPen( chipColor.WithAlpha( 0.4f ), 1 );
+			Paint.SetBrush( chipColor.WithAlpha( 0.18f ) );
 			Paint.DrawRect( rect, borderRadius );
 		}
 
 		if ( Paint.HasMouseOver )
 		{
-			Paint.SetPen( Theme.Blue.WithAlpha( 0.5f ), 1 );
+			var hoverColor = AssetTagSystem.GetTagColor( InternalName );
+			Paint.SetPen( hoverColor.WithAlpha( 0.6f ), 1 );
 			Paint.ClearBrush();
 			Paint.DrawRect( rect, borderRadius );
 		}
@@ -183,12 +185,19 @@ public class Chip : Button
 		Paint.SetPen( Theme.TextControl );
 		Paint.SetDefaultFont( FontSize );
 
-		if ( Icon != null )
+		var displayIcon = Icon;
+		if ( displayIcon != null && InternalName != null )
+		{
+			// Fetch the latest generated icon in case the tag color or material icon was updated
+			displayIcon = AssetTagSystem.GetTagIcon( InternalName ) ?? displayIcon;
+		}
+
+		if ( displayIcon != null )
 		{
 			var iconRect = rect.Shrink( 8, 6 );
 			iconRect.Width = iconRect.Height;
 
-			Paint.Draw( iconRect, Icon );
+			Paint.Draw( iconRect, displayIcon );
 			rect.Left += 16.0f + 8.0f;
 		}
 

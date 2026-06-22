@@ -1,4 +1,4 @@
-﻿using System.Globalization;
+using System.Globalization;
 using System.IO;
 using System.Text.RegularExpressions;
 
@@ -361,17 +361,8 @@ public partial class AssetList : ListView, AssetSystem.IEventListener
 	{
 		Paint.DrawText( item.Rect.Shrink( 32, 0, 0, 0 ), directory.Name, TextFlag.LeftCenter | TextFlag.SingleLine );
 
-		var metadata = DirectoryEntry.GetMetadata( directory.DirectoryInfo.FullName );
-		Paint.SetPen( metadata.Color );
-		var iconRect = item.Rect.Shrink( 4, 3 );
-		iconRect.Width = iconRect.Height = 18;
-		Paint.DrawIcon( iconRect, "folder", 18, TextFlag.LeftCenter );
-
-		if ( !string.IsNullOrEmpty( metadata.Icon ) )
-		{
-			Paint.SetPen( metadata.Color.Darken( 0.25f ) );
-			Paint.DrawIcon( iconRect.Shrink( 0, 1, 0, 0 ), metadata.Icon, 9, TextFlag.Center );
-		}
+		Paint.SetPen( Theme.Yellow );
+		Paint.DrawIcon( item.Rect.Shrink( 4, 3 ), "folder", 18, TextFlag.LeftCenter );
 	}
 
 	private void DrawAssetEntry( VirtualWidget item, AssetEntry asset )
@@ -750,7 +741,6 @@ public partial class AssetList : ListView, AssetSystem.IEventListener
 					if ( Browser.CurrentLocation.Path == directory ) continue;
 					// Move Directory
 					EditorUtility.RenameDirectory( file, destinationFile );
-					DirectoryEntry.RenameMetadata( file, destinationFile );
 				}
 				else
 				{
