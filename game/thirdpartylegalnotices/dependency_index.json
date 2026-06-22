@@ -87,20 +87,6 @@
 			]
 		},
 		{
-			"Name": "FFTS",
-			"Comment": "The Fastest Fourier Transform in the South (FFT implementation).",
-			"UsedBy": [
-				"resourcecompiler",
-				"steamaudio"
-			],
-			"License": "BSD-3-Clause",
-			"ProjectUrl": "https://github.com/ValveSoftware/ffts",
-			"Linkage": "static",
-			"Copyright": [
-				"2012, 2013 Anthony M. Blake"
-			]
-		},
-		{
 			"Name": "mimalloc",
 			"Comment": "mimalloc is a compact general purpose allocator with excellent performance.",
 			"UsedBy": [
@@ -1034,6 +1020,23 @@
 			]
 		},
 		{
+			"Name": "PFFFT",
+			"Comment": "Pretty Fast FFT — real/complex FFT used by the sound system and Steam Audio.",
+			"UsedBy": [
+				"engine2",
+				"steamaudio"
+			],
+			"License": "BSD-3-Clause",
+			"ProjectUrl": "https://github.com/marton78/pffft",
+			"Linkage": "static",
+			"Copyright": [
+				"2020 Dario Mambro",
+				"2019 Hayati Ayguen",
+				"2013 Julien Pommier",
+				"2004 University Corporation for Atmospheric Research (UCAR)"
+			]
+		},
+		{
 			"Name": "libcurl",
 			"Comment": "HTTP client library for URL transfers.",
 			"UsedBy": [
@@ -1044,6 +1047,19 @@
 			"Linkage": "static",
 			"Copyright": [
 				"1996-2026 Daniel Stenberg and many contributors"
+			]
+		},
+		{
+			"Name": "FidelityFX SDK",
+			"Comment": "AMD FidelityFX Super Resolution upscaling technologies. Includes FSR1 (spatial) and FSR3 (temporal) used by the rendering pipeline.",
+			"UsedBy": [
+				"engine2"
+			],
+			"License": "MIT",
+			"ProjectUrl": "https://github.com/GPUOpen-LibrariesAndSDKs/FidelityFX-SDK",
+			"Linkage": "static",
+			"Copyright": [
+				"2024 Advanced Micro Devices, Inc."
 			]
 		}
 	]

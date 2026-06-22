@@ -127,7 +127,7 @@ internal partial class PanelRenderer
 			SetScissorAttributes( cl, desc.Scissor );
 
 			Stats.DrawCalls++;
-			UIRenderer.Draw( CollectionsMarshal.AsSpan( desc.Backdrops ), cl, reuseGrab: backdropGrabActive );
+			DrawImmediate( CollectionsMarshal.AsSpan( desc.Backdrops ), cl, reuseGrab: backdropGrabActive );
 			backdropGrabActive = true;
 		}
 
@@ -191,17 +191,20 @@ internal partial class PanelRenderer
 		{
 			ref var ri = ref instances[j];
 
-			// Skip boxes whose background texture hasn't streamed in yet
-			if ( ri.BackgroundImage is not null && ri.BackgroundImage.Index <= 0 )
-				continue;
-
 			var gpu = ri.GPU;
 
-			// Refresh bindless indices that may have changed since build
 			if ( ri.BackgroundImage is not null )
-				gpu.TextureIndex = ri.BackgroundImage.Index;
+			{
+				if ( ri.BackgroundImage.IsAnimated )
+					ri.BackgroundImage.MarkUsed();
+				gpu.TextureIndex = ri.BackgroundImage.Index > 0 ? ri.BackgroundImage.Index : Texture.Transparent.Index;
+			}
 			if ( ri.BorderImage is not null )
-				gpu.BorderImageIndex = ri.BorderImage.Index;
+			{
+				if ( ri.BorderImage.IsAnimated )
+					ri.BorderImage.MarkUsed();
+				gpu.BorderImageIndex = ri.BorderImage.Index > 0 ? ri.BorderImage.Index : Texture.Transparent.Index;
+			}
 
 			gpu.ScissorIndex = scissorIndex;
 			gpu.TransformIndex = transformIndex;
@@ -282,7 +285,7 @@ internal partial class PanelRenderer
 		if ( hasBackdrop )
 		{
 			Stats.DrawCalls++;
-			UIRenderer.Draw( CollectionsMarshal.AsSpan( desc.Backdrops ), cl, reuseGrab: backdropGrabActive );
+			DrawImmediate( CollectionsMarshal.AsSpan( desc.Backdrops ), cl, reuseGrab: backdropGrabActive );
 			backdropGrabActive = true;
 		}
 
@@ -294,14 +297,26 @@ internal partial class PanelRenderer
 		var desc = panel.CachedDescriptors;
 		if ( desc == null ) return;
 
+		var customIdx = 0;
+
 		var instances = CollectionsMarshal.AsSpan( desc.Instances );
 		for ( int j = 0; j < instances.Length; j++ )
 		{
+			// Fire any custom draws whose insertion point falls before this instance
+			while ( customIdx < desc.CustomEntries.Count && desc.CustomEntries[customIdx].InsertionIndex <= j )
+			{
+				FlushBatch( cl );
+				DrawCustom( desc.CustomEntries[customIdx++].Descriptor, cl );
+				// Restore CL state that the batch path expects
+				cl.Attributes.Set( "TransformMat", transform );
+				if ( worldPanelMat.HasValue )
+					cl.Attributes.Set( "WorldMat", worldPanelMat.Value );
+				SetScissorAttributes( cl, scissor );
+			}
+
 			ref var ri = ref instances[j];
 
-			if ( ri.BackgroundImage is not null && ri.BackgroundImage.Index <= 0 )
-				continue;
-
+			// Blend mode change forces a flush so the shader combo is correct
 			if ( ri.BlendMode != pendingBlendMode && pendingInstances.Count > 0 )
 				FlushBatch( cl );
 
@@ -309,14 +324,52 @@ internal partial class PanelRenderer
 
 			var gpu = ri.GPU;
 			if ( ri.BackgroundImage is not null )
-				gpu.TextureIndex = ri.BackgroundImage.Index;
+			{
+				if ( ri.BackgroundImage.IsAnimated )
+					ri.BackgroundImage.MarkUsed();
+				gpu.TextureIndex = ri.BackgroundImage.Index > 0 ? ri.BackgroundImage.Index : Texture.Transparent.Index;
+			}
 			if ( ri.BorderImage is not null )
-				gpu.BorderImageIndex = ri.BorderImage.Index;
+			{
+				if ( ri.BorderImage.IsAnimated )
+					ri.BorderImage.MarkUsed();
+				gpu.BorderImageIndex = ri.BorderImage.Index > 0 ? ri.BorderImage.Index : Texture.Transparent.Index;
+			}
 
 			gpu.InverseScissorIndex = ri.HasInverseScissor ? batcher.GetOrAddScissor( ri.InverseScissor ) : -1;
 
 			AddInstance( gpu, scissor, transform );
 		}
+
+		// Fire any custom draws that come after all instances
+		while ( customIdx < desc.CustomEntries.Count )
+		{
+			FlushBatch( cl );
+			DrawCustom( desc.CustomEntries[customIdx++].Descriptor, cl );
+			cl.Attributes.Set( "TransformMat", transform );
+			if ( worldPanelMat.HasValue )
+				cl.Attributes.Set( "WorldMat", worldPanelMat.Value );
+			SetScissorAttributes( cl, scissor );
+		}
+	}
+
+	void DrawCustom( IPanelDraw descriptor, CommandList cl )
+	{
+		if ( isWorldPanelContext )
+			cl.Attributes.Set( "WorldMat", Sandbox.ScenePanelObject.BuildPanelToObjectMatrix() );
+
+		descriptor.Draw( cl );
+	}
+
+	void DrawImmediate( Span<BackdropDrawDescriptor> descriptors, CommandList cl, bool reuseGrab )
+	{
+		if ( isWorldPanelContext )
+			cl.Attributes.Set( "WorldMat", Sandbox.ScenePanelObject.BuildPanelToObjectMatrix() );
+
+		UIRenderer.Draw( descriptors, cl, reuseGrab );
+
+		if ( worldPanelMat.HasValue )
+			cl.Attributes.Set( "WorldMat", worldPanelMat.Value );
 	}
 
 	void AddInstance( GPUBoxInstance inst, GPUScissor scissor, Matrix transform )
